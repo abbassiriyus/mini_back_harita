@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buxoroda Xarita va Qidiruv</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+        }
+
+        .calendar-container {
+            max-width: 400px;
+            /* Kichikroq kenglik */
+            margin: auto;
+            text-align: center;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            /* Kichikroq padding */
+        }
+
+        .calendar-container__header {
+            font-size: 18px;
+            /* Kichikroq font o'lchami */
+            margin-bottom: 8px;
+        }
+
+        .calendar-container__controls {
+            margin: 8px 0;
+        }
+
+        .calendar-container__month-select,
+        .calendar-container__year-select {
+            padding: 6px;
+            margin: 5px;
+            font-size: 12px;
+            /* Kichikroq font o'lchami */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            width: auto;
+        }
+
+        .calendar-container__weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .calendar-container__weekday {
+            font-size: 10px;
+            /* Kichikroq font o'lchami */
+            color: #555;
+        }
+
+        .calendar-container__grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            /* Kichikroq bo'shliq */
+            margin-top: 5px;
+        }
+
+        .calendar-container__day {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 5px;
+            /* Kichikroq padding */
+            cursor: pointer;
+            font-size: 12px;
+            /* Kichikroq font o'lchami */
+        }
+
+        .calendar-container__day:hover {
+            background-color: #eaeaea;
+        }
+
+        .calendar-container__day--booked {
+            background-color: #ffcccc;
+            position: relative;
+            cursor: not-allowed;
+        }
+
+        .calendar-container__day--booked.selected {
+            background-color: #ff0000;
+            /* Qizil rang */
+        }
+
+        .order-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 9999;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .order-modal__content {
+            background-color: #fff;
+            padding: 15px;
+            /* Kichikroq padding */
+            border-radius: 10px;
+            text-align: left;
+            width: 300px;
+            /* Kichikroq kenglik */
+        }
+
+        .order-modal__header {
+            font-size: 16px;
+            /* Kichikroq font o'lchami */
+            margin-bottom: 5px;
+        }
+
+        .order-modal__footer {
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        .order-modal__close-btn,
+        .order-modal__submit-btn {
+            padding: 8px 12px;
+            /* Kichikroq padding */
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            /* Kichikroq font o'lchami */
+        }
+
+        .order-modal__close-btn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .order-modal__submit-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .order-modal__date-input {
+            padding: 6px;
+            /* Kichikroq padding */
+            margin: 5px 0;
+            font-size: 12px;
+            /* Kichikroq font o'lchami */
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: calc(100% - 12px);
+            /* To'liq kenglik */
+        }
+
+        #menu {
+            width: 450px;
+            /* Qidiruv oynasi joyida */
+            background: #f4f4f4;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            height: 100vh;
+        }
+
+        #map {
+            height: 100vh;
+            flex-grow: 1;
+        }
+
+        #search {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .location-card {
+            display: flex;
+            padding: 10px;
+            background: #fff;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            align-items: center;
+            transition: box-shadow 0.2s;
+        }
+
+        .location-card:hover {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .location-card img {
+            width: 60px;
+            height: 60px;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .location-info {
+            flex-grow: 1;
+        }
+
+        .location-name {
+            font-weight: bold;
+        }
+
+        .location-prices {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .info {
+            display: none;
+    position: absolute;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    padding: 10px;
+    z-index: 9999 !important;
+    width: 300px;
+    height: 100vh;
+    overflow-y: auto;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    right: 0px;
+    top: 0px;
+        }
+
+        .details {
+            display: none;
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            padding: 20px;
+            z-index: 9999;
+            width: 300px;
+            border-radius: 5px;
+            left: 300px;
+            /* O'ng tarafda joylashishi */
+            top: 20px;
+            /* Yuqoridan joylashishi */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-container {
+            max-width: 600px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin: auto;
+        }
+        .info-container__header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .info-container__header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .info-container__header img {
+            width: 50px;
+            height: 50px;
+        }
+        .info-container__details {
+            margin-bottom: 15px;
+        }
+        .info-container__details p {
+            margin: 5px 0;
+        }
+        .info-container__price {
+            font-weight: bold;
+            color: green;
+        }
+        .info-container__old-price {
+            /* text-decoration: line-through; */
+            /* color: red; */
+        }
+        @media (max-width: 768px) {
+
+            .info,
+            .details {
+                left: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="menu">
+        <input type="text" id="search" placeholder="Location search..." />
+        <div id="locations"></div>
+    </div>
+    <div id="map"></div>
+    <div class="info" id="infoDiv">
+        <button onclick="closeInfo()">Close</button>
+        <img id="locationImage" src="" alt="" style="width: 100%; height: auto;" />
+        <p id="locationDetails"></p>
+        <div class="calendar-container">
+            <div class="calendar-container__controls">
+                <select id="monthSelect" class="calendar-container__month-select"></select>
+                <select id="yearSelect" class="calendar-container__year-select"></select>
+            </div>
+            <div class="calendar-container__weekdays">
+                <div class="calendar-container__weekday">Dush</div>
+                <div class="calendar-container__weekday">Sesh</div>
+                <div class="calendar-container__weekday">Chors</div>
+                <div class="calendar-container__weekday">Pays</div>
+                <div class="calendar-container__weekday">Juma</div>
+                <div class="calendar-container__weekday">Shan</div>
+                <div class="calendar-container__weekday">Yak</div>
+            </div>
+            <div class="calendar-container__grid" id="calendar"></div>
+        </div>
+
+    </div>
+
+    <div class="order-modal" id="orderModal">
+        <div class="order-modal__content">
+            <div class="order-modal__header">Yangi Buyurtma</div>
+            <div id="selectedDate"></div>
+            <label for="orderDay">Kun Tanlang:</label>
+            <input type="date" id="orderDay" class="order-modal__date-input" />
+            <div class="order-modal__footer">
+                <button class="order-modal__close-btn" id="closeModal">Yopish</button>
+                <button class="order-modal__submit-btn" id="submitOrder">Buyurtma Berish</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const locations = [
+            { 
+                name: "пр. Мустакиллик, площадь Х. Алимжана (на мосту)",
+                 lat: 39.7733,
+                  lng: 64.4275,
+                   info: "Buxoro Ark: Tarixiy qal'a.",
+                    image: "https://outdoor.medialux.uz/images/foto/admin/img/6hmouo.jpg",
+                  oldPrice: "1800000",
+                   newPrice: "0",
+                    type: "А и Б (два экрана)",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'Прямой участок дороги',
+                   svetafor:'н/д'
+
+                },
+                    
+            { 
+                name: "ул. Шимолий, ор.: Круг Джами",
+                 lat: 39.7755,
+                  lng: 64.4275,
+                   info: "Samanidlar maqbarasi: Buxorodagi eng mashhur yodgorlik.",
+                    image: "https://outdoor.medialux.uz/images/foto/admin/img/rygbn3.jpg",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д'
+                },
+            { 
+                name: "Chor Minor",
+                 lat: 39.7742,
+                  lng: 64.4278,
+                   info: "пересечение пр. Беруни и ул. О. Садыкова, ор.: Метро Тинчлик",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д' 
+                },
+            { 
+                name: "Buxoro ko'li",
+                 lat: 39.7700,
+                  lng: 64.4200,
+                   info: "Buxoro ko'li: Tabiiy go'zallik.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д' },
+            { 
+                name: "Buxoro madrasasi",
+                 lat: 39.7740,
+                  lng: 64.4270,
+                   info: "Buxoro madrasasi: Ta'lim muassasasi.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д'  },
+            { 
+                name: "Sitorai Mokhi Khosa",
+                 lat: 39.7736,
+                  lng: 64.4310,
+                   info: "Sitorai Mokhi Khosa: Buxorodagi go'zal saroy.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д'  },
+            { 
+                name: "Buxoro teatri",
+                 lat: 39.7730,
+                  lng: 64.4250,
+                   info: "Buxoro teatri: Madaniy tadbirlar o'tkaziladi.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д'  },
+            { 
+                name: "Jome masjidi",
+                 lat: 39.7750,
+                  lng: 64.4260,
+                   info: "Jome masjidi: Buxorodagi eng katta masjid.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д' },
+            { 
+                name: "Bukhara Bazaar",
+                 lat: 39.7730,
+                  lng: 64.4290,
+                   info: "Bukhara Bazaar: Mahalliy bozor.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д'  },
+            { 
+                name: "Kalon minora",
+                 lat: 39.7745,
+                  lng: 64.4280,
+                   info: "Kalon minora: Buxorodagi mashhur minora.",
+                    image: "https://www.freeiconspng.com/uploads/map-location-icon-29.png",
+                    oldPrice: "3 975 000",
+                   newPrice: "0",
+                    type: "экран",
+                   tip:"Cветодиодный Экран",
+                   pasport:"7407 и 8417",
+                   format:"	12x6",
+                   data:"Свободно",
+                   kolechtvo:"600",
+                   vimos:'200 m',
+                   prixod:'140 000 человек',
+                   tensport:'на кругу',
+                   svetafor:'н/д' }
+        ];
+
+        const searchInput = document.getElementById('search');
+        const locationsDiv = document.getElementById('locations');
+        const infoDiv = document.getElementById('infoDiv');
+        const locationImage = document.getElementById('locationImage');
+        const locationDetails = document.getElementById('locationDetails');
+
+        const detailsDiv = document.getElementById('detailsDiv');
+        const detailsName = document.getElementById('detailsName');
+        const detailsInfo = document.getElementById('detailsInfo');
+
+        let markers = [];
+
+        function updateLocations(filter = '') {
+            locationsDiv.innerHTML = '';
+            markers.forEach(marker => map.removeLayer(marker)); // Oldin mavjud markerlarni o'chirish
+            markers = []; // Markerlar ro'yxatini bo'shatish
+
+            const filteredLocations = locations.filter(location => location.name.toLowerCase().includes(filter.toLowerCase())).slice(0, 10);
+            filteredLocations.forEach(location => {
+                const card = document.createElement('div');
+                card.className = 'location-card';
+                card.innerHTML = `
+                <img src="${location.image}" alt="${location.name}" />
+                <div class="location-info">
+                    <div class="location-name">${location.name}</div>
+                    <div class="location-prices">
+                        <span>Цена: ${location.oldPrice}</span>
+                        <span>Монтаж: ${location.newPrice}</span>
+                        <span>Сторона:${location.type}</span>
+                    </div>
+                </div>
+            `;
+                card.onclick = () => showInfo(location);
+                locationsDiv.appendChild(card);
+
+                const marker = L.marker([location.lat, location.lng]).addTo(map).on('click', () => showInfo(location));
+                markers.push(marker); // Yangi markerni ro'yxatga qo'shish
+            });
+        }
+
+        function showInfo(location) {
+ 
+            locationImage.src = location.image;
+            console.log(location);
+            
+            locationDetails.innerHTML =`<div class="info-container__details">
+            <p><strong>Ma'lumot:</strong>${location.name}</p>
+            <p class="info-container__price"><span class="info-container__old-price">Цена: ${location.oldPrice}</span> | Монтаж: ${location.newPrice}</p>
+            <p><strong>Сторона:</strong> ${location.type}</p>
+            <p><strong>Тип конструкции:</strong> ${location.tip}</p>
+            <p><strong>Pasportlar:</strong>${ location.pasport}</p>
+            <p><strong>Format:</strong> ${location.format}</p>
+            <p><strong>Holati:</strong>${location.data}</p>
+            <p><strong>Miqdor:</strong>${location.kolechtvo}</p>
+            <p><strong>Vimos:</strong> ${location.vimos}</p>
+            <p><strong>Kelish:</strong>${location.prixod}</p>
+            <p><strong>Transport:</strong>${location.tensport}</p>
+            <p><strong>Svetafor:</strong> ${location.svetafor}</p>
+        </div>`;
+            infoDiv.style.display = 'block';
+
+            // To'liq ma'lumot oynasini yashirish
+            detailsDiv.style.display = 'none';
+
+            map.setView([location.lat, location.lng], 16);
+        }
+
+        function closeInfo() {
+            infoDiv.style.display = 'none';
+        }
+
+        function closeDetails() {
+            detailsDiv.style.display = 'none';
+        }
+
+        searchInput.addEventListener('input', () => {
+            updateLocations(searchInput.value);
+        });
+
+        const map = L.map('map').setView([39.7733, 64.4275], 16);
+
+        // O'zgartirilgan dizayn
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(map);
+
+        updateLocations(); // Dastlabki joylarni ko'rsatish
+
+
+    </script>
+
+    <script>
+        // Har yil va oy uchun band qilingan kunlar
+        const bookedDates = {
+            "2023": {
+                "0": [{ start: 1, end: 3 }],
+                "1": [{ start: 10, end: 15 }]
+            },
+            "2024": {
+                "0": [{ start: 5, end: 7 }],
+                "1": [{ start: 2, end: 4 }]
+            },
+            "2025": {
+                "0": [{ start: 2, end: 5 }],
+                "1": [{ start: 8, end: 12 }]
+            },
+            "2026": {
+
+            },
+            '2027': {
+
+            },
+            "2028": {
+
+            },
+            "2029": {
+
+            }
+        };
+
+        // Bugungi kunni olish
+        const today = new Date();
+        const todayYear = today.getFullYear();
+        const todayMonth = today.getMonth();
+        const todayDate = today.getDate();
+
+        const monthSelect = document.getElementById('monthSelect');
+        const yearSelect = document.getElementById('yearSelect');
+        const calendarElement = document.getElementById('calendar');
+        const orderModal = document.getElementById('orderModal');
+        const closeModal = document.getElementById('closeModal');
+        const submitOrder = document.getElementById('submitOrder');
+        const selectedDateDisplay = document.getElementById('selectedDate');
+        const orderDayInput = document.getElementById('orderDay');
+
+        const months = [
+            "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+            "Iyul", "Avgust", "Sentabr", "Oktyabr", "Noyabr", "Dekabr"
+        ];
+
+        const currentYear = todayYear;
+        for (let i = 0; i < months.length; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = months[i];
+            monthSelect.appendChild(option);
+        }
+
+        for (let year = currentYear; year <= currentYear + 5; year++) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        }
+
+        let old_day; // Boshlanish kunini saqlash uchun
+
+        function generateCalendar(month, year) {
+            calendarElement.innerHTML = '';
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Band qilingan kunlarni olish
+            const bookedForMonth = bookedDates[year]?.[month] || [];
+
+            for (let i = 0; i < firstDay; i++) {
+                const emptyElement = document.createElement('div');
+                calendarElement.appendChild(emptyElement);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-container__day';
+                dayElement.textContent = day;
+
+                // Band qilingan kunlar tekshirilishi
+                const isBooked = bookedForMonth.some(range => day >= range.start && day <= range.end);
+                const isToday = (year === todayYear && month === todayMonth && day === todayDate);
+
+                if (isBooked) {
+                    dayElement.classList.add('calendar-container__day--booked');
+                } else if (isToday) {
+                    dayElement.style.backgroundColor = '#ffff99'; // Bugun uchun maxsus rang
+                } else {
+                    dayElement.onclick = () => {
+                        // Oynani ko'rsatish va tanlangan kunni ko'rsatish
+                        old_day = day; // Boshlanish kunini saqlash
+                        selectedDateDisplay.textContent = `Tanlangan Kun: ${day} ${months[month]} ${year}`;
+                        const selectedDate = new Date(year, month, day);
+                        orderDayInput.value = selectedDate.toISOString().split('T')[0]; // Tanlangan kunni inputga qo'shish
+                        orderModal.style.display = 'flex';
+                    };
+                }
+
+                calendarElement.appendChild(dayElement);
+            }
+        }
+
+        monthSelect.onchange = () => {
+            generateCalendar(monthSelect.value, yearSelect.value);
+        };
+
+        yearSelect.onchange = () => {
+            generateCalendar(monthSelect.value, yearSelect.value);
+        };
+
+        closeModal.onclick = () => {
+            orderModal.style.display = 'none';
+        };
+
+        submitOrder.onclick = () => {
+            const orderDay = orderDayInput.value;
+            const selectedDay = new Date(orderDay).getDate();
+            const selectedMonth = monthSelect.value; // 0-dan boshlanadi
+            const selectedYear = yearSelect.value;
+
+            // Band qilingan kunlarni tekshirish
+            const bookedForMonth = bookedDates[selectedYear]?.[selectedMonth] || [];
+            const isOverlapping = bookedForMonth.some(range => {
+                return (old_day >= range.start && old_day <= range.end) || // Boshlanish kunining bandligini tekshirish
+                    (selectedDay >= range.start && selectedDay <= range.end) || // Tanlangan kunning bandligini tekshirish
+                    (old_day < range.start && selectedDay > range.end); // Boshlanish va tugash oralig'ini tekshirish
+            });
+
+            if (isOverlapping) {
+                alert(`Tanlangan kun band: ${orderDay}. Iltimos, boshqa kunni tanlang!`);
+            } else {
+                // Band qilingan kunni qo'shish
+                const newBooking = { start: old_day, end: selectedDay }; // Boshlanish va tugash vaqti tanlangan kun
+                if (!bookedDates[selectedYear]) {
+                    bookedDates[selectedYear] = {};
+                }
+                if (!bookedDates[selectedYear][selectedMonth]) {
+                    bookedDates[selectedYear][selectedMonth] = [];
+                }
+
+                // Yangi buyurtma qo'shish
+                bookedDates[selectedYear][selectedMonth].push(newBooking);
+                alert(`Buyurtma berildi!\nTanlangan Kun: ${orderDay}`);
+            }
+
+            // Kalendarni yangilash
+            generateCalendar(selectedMonth, selectedYear);
+            orderModal.style.display = 'none';
+        };
+
+        // Dastlabki kalendarning ko'rsatish
+        generateCalendar(todayMonth, todayYear);
+    </script>
+</body>
+
+</html>
